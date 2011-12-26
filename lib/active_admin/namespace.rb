@@ -91,7 +91,8 @@ module ActiveAdmin
     # The menu gets built by Active Admin once all the resources have been
     # loaded. This method gets called to register each resource with the menu system.
     def load_menu!
-      register_dashboard
+      # Do not display Dashboard link in header
+      #register_dashboard
       resources.values.each do |config|
         register_with_menu(config) if config.include_in_menu?
       end
