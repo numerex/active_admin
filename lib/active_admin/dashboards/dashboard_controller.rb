@@ -1,12 +1,9 @@
 module ActiveAdmin
   module Dashboards
-    class DashboardController < ResourceController
-
-      actions :index
-
+    module DashboardController
       def index
         @dashboard_sections = find_sections
-        render 'active_admin/dashboard/index.html.arb'
+        render 'active_admin/dashboard/index'
       end
 
       private
@@ -48,7 +45,6 @@ module ActiveAdmin
       def active_admin_namespace
         ActiveAdmin.application.namespace(namespace)
       end
-
     end
   end
 end

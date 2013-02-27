@@ -30,7 +30,7 @@ describe ActiveAdmin::Application do
     application.site_title = "New Title"
     application.site_title.should == "New Title"
   end
-  
+
   it "should store the site's title link" do
     application.site_title_link.should == ""
   end
@@ -39,11 +39,11 @@ describe ActiveAdmin::Application do
     application.site_title_link = "http://www.mygreatsite.com"
     application.site_title_link.should == "http://www.mygreatsite.com"
   end
-  
+
   it "should store the site's title image" do
     application.site_title_image.should == ""
   end
-  
+
   it "should set the site's title image" do
     application.site_title_image = "http://railscasts.com/assets/episodes/stills/284-active-admin.png?1316476106"
     application.site_title_image.should == "http://railscasts.com/assets/episodes/stills/284-active-admin.png?1316476106"
@@ -53,7 +53,7 @@ describe ActiveAdmin::Application do
     application.view_factory.should be_an_instance_of(ActiveAdmin::ViewFactory)
   end
 
-  it "should have deprecated admin notes by default" do 
+  it "should have deprecated admin notes by default" do
     application.admin_notes.should be_nil
   end
 
@@ -80,9 +80,22 @@ describe ActiveAdmin::Application do
     end
   end
 
+  describe "inheritable settings" do
+    it "should set csv_options" do
+      application.csv_options.should == {}
+    end
+
+    context "when deprecated" do
+      it "should set and warn csv_column_separator" do
+        ActiveAdmin::Deprecation.should_receive(:warn)
+        application.csv_column_separator.should == ','
+      end
+    end
+  end
+
   describe "files in load path" do
     it "should load files in the first level directory" do
-      application.files_in_load_path.should include(File.expand_path("app/admin/dashboards.rb", Rails.root))
+      application.files_in_load_path.should include(File.expand_path("app/admin/dashboard.rb", Rails.root))
     end
 
     it "should load files from subdirectories" do
@@ -93,19 +106,8 @@ describe ActiveAdmin::Application do
     end
   end
 
-  describe "adding an inheritable setting" do
+  describe "#namespace (or #find_or_create_namespace)" do
 
-    it "should add a setting to Application and Namespace" do
-      ActiveAdmin::Application.inheritable_setting :inheritable_setting, "inheritable_setting"
-      app = ActiveAdmin::Application.new
-      app.inheritable_setting.should == "inheritable_setting"
-      ns = ActiveAdmin::Namespace.new(app, :admin)
-      ns.inheritable_setting.should == "inheritable_setting"
-    end
-
-  end
-
-  describe "#namespace" do
     it "should yield a new namespace" do
       application.namespace :new_namespace do |ns|
         ns.name.should == :new_namespace
@@ -114,9 +116,16 @@ describe ActiveAdmin::Application do
 
     it "should return an instantiated namespace" do
       admin = application.find_or_create_namespace :admin
-      application.namespace :admin do |ns|
-        ns.should == admin
-      end
+      admin.should == application.namespaces[:admin]
+    end
+
+    it "should yield an existing namespace" do
+      expect {
+        application.namespace :admin do |ns|
+          ns.should == application.namespaces[:admin]
+          raise "found"
+        end
+      }.to raise_error("found")
     end
   end
 

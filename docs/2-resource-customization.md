@@ -10,6 +10,19 @@ the <tt>:as</tt> option.
 
 The resource will then be available as /admin/articles
 
+## Customize the Namespace
+
+By default, resources live in the "admin" namespace.
+
+You can register resources in different namespaces:
+
+    # Available at /today/posts
+    ActiveAdmin.register Post, :namespace => "today"
+
+    # Available at /posts
+    ActiveAdmin.register Post, :namespace => false
+
+
 ## Customize the Menu
 
 The resource will be displayed in the global navigation by default. To disable
@@ -22,7 +35,8 @@ the resource from being displayed in the global navigation, pass `false` to the
 
 The menu method accepts a hash with the following options:
 
-* `:label` - The string label to display in the menu
+* `:label` - The string or proc label to display in the menu. If it's a proc, it
+  will be called each time the menu is rendered.
 * `:parent` - The string label of the parent to set for this menu
 * `:if` - A block or a symbol of a method to call to decide if the menu item
   should be displayed
@@ -37,6 +51,13 @@ To change the name of the label in the menu:
     end
 
 By default the menu uses a pluralized version of your resource name.
+
+If you wish to translate your label at runtime, store the label as a proc
+instead of a string. The proc will be called each time the menu is rendered.
+
+    ActiveAdmin.register Post do
+      menu :label => proc{ I18n.t("mypost") }
+    end
 
 ### Drop Down Menus
 
@@ -69,7 +90,7 @@ This would ensure that the Post menu item, is at the beginning of the menu.
 
 ### Conditionally Showing / Hiding Menu Items
 
-Menu items can be shown or hidden at runtime using the `:if` option. 
+Menu items can be shown or hidden at runtime using the `:if` option.
 
     ActiveAdmin.register Post do
       menu :if => proc{ current_admin_user.can_edit_posts? }
@@ -80,8 +101,8 @@ your helpers and current user session information.
 
 ## Scoping the queries
 
-If your administrators have different access levels, you may sometimes want to 
-scope what they have access to. Assuming your User model has the proper 
+If your administrators have different access levels, you may sometimes want to
+scope what they have access to. Assuming your User model has the proper
 has_many relationships, you can simply scope the listings and finders like so:
 
     ActiveAdmin.register Post do
@@ -93,8 +114,8 @@ has_many relationships, you can simply scope the listings and finders like so:
 
 That approach limits the posts an admin can access to ```current_user.posts```.
 
-If you want to do something fancier, for example override a default scope, you can 
-also use :association_method parameter with a normal method on your User model. 
+If you want to do something fancier, for example override a default scope, you can
+also use :association_method parameter with a normal method on your User model.
 The only requirement is that your method returns an instance of ActiveRecord::Relation.
 
     class Ad < ActiveRecord::Base
@@ -112,3 +133,30 @@ The only requirement is that your method returns an instance of ActiveRecord::Re
       scope_to :current_user, :association_method => :managed_ads
     end
 
+In case you just need to customize the query independently of the current user, you can
+override the `scoped_collection` method on the controller:
+
+    ActiveAdmin.register Post do
+      controller do
+        def scoped_collection
+          Post.includes(:author)
+        end
+      end
+    end
+
+## Customizing resource retrieval
+
+If you need to completely replace the record retrieving code (e.g., you have a custom
+`to_param` implementation in your models), override the `resource` method on the controller:
+
+    ActiveAdmin.register Post do
+      controller do
+        def resource
+          Post.where(id: params[:id]).first!
+        end
+      end
+    end
+
+In fact, the controllers use [Inherited Resource](https://github.com/josevalim/inherited_resources),
+so you can use all the
+[customization features in Inherited Resource](https://github.com/josevalim/inherited_resources#overwriting-defaults).

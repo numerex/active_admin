@@ -6,10 +6,6 @@ module ActiveAdmin
     module Collection
       extend ActiveSupport::Concern
 
-      included do
-        before_filter :setup_pagination_for_csv
-      end
-
       module BaseCollection
         protected
 
@@ -49,10 +45,11 @@ module ActiveAdmin
           if params[:order] && params[:order] =~ /^([\w\_\.]+)_(desc|asc)$/
             column = $1
             order  = $2
-            table  = active_admin_config.resource_table_name
-            table_column = (column =~ /\./) ? column : "#{table}.#{column}"
+            table  = active_admin_config.resource_column_names.include?(column) ? active_admin_config.resource_table_name : nil
+            table_column = (column =~ /\./) ? column :
+              [table, active_admin_config.resource_quoted_column_name(column)].compact.join(".")
 
-            chain.order("#{table_column} #{order}")
+            chain.reorder("#{table_column} #{order}")
           else
             chain # just return the chain
           end
@@ -91,13 +88,19 @@ module ActiveAdmin
         end
 
         def scope_current_collection(chain)
+          @collection_before_scope = chain
+
           if current_scope
-            @before_scope_collection = chain
             scope_chain(current_scope, chain)
           else
             chain
           end
         end
+
+        def collection_before_scope
+          @collection_before_scope
+        end
+
 
         include ActiveAdmin::ScopeChain
 
@@ -118,13 +121,26 @@ module ActiveAdmin
           paginate(super)
         end
 
-        # Allow more records for csv files
-        def setup_pagination_for_csv
-          @per_page = 10_000 if request.format == 'text/csv'
+        def paginate(chain)
+          page_method_name = Kaminari.config.page_method_name
+          page = params[Kaminari.config.param_name]
+
+          chain.send(page_method_name, page).per(per_page)
         end
 
-        def paginate(chain)
-          chain.page(params[:page]).per(@per_page || active_admin_namespace.default_per_page)
+        def per_page
+          return max_csv_records if request.format == 'text/csv'
+          return max_per_page if active_admin_config.paginate == false
+
+          @per_page || active_admin_config.per_page
+        end
+
+        def max_csv_records
+          10_000
+        end
+
+        def max_per_page
+          10_000
         end
       end
 

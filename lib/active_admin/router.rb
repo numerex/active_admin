@@ -1,6 +1,5 @@
 module ActiveAdmin
   class Router
-
     def initialize(application)
       @application = application
     end
@@ -14,49 +13,42 @@ module ActiveAdmin
     #   end
     #
     def apply(router)
-      # Define any necessary dashboard routes
-      router.instance_exec(@application.namespaces.values) do |namespaces|
+      define_basic_routes router
+      define_resource_routes router
+    end
+
+    # Define any necessary dashboard routes and root
+    def define_basic_routes(router)
+      router.instance_exec(@application.namespaces.values, self) do |namespaces, aa_router|
         namespaces.each do |namespace|
           if namespace.root?
-            match '/' => 'dashboard#index', :as => 'dashboard'
+            instance_eval &aa_router.root_and_dashboard_routes(namespace)
           else
-            name = namespace.name
-            match name.to_s => "#{name}/dashboard#index", :as => "#{name.to_s}_dashboard"
+            namespace(namespace.name) do
+              instance_eval &aa_router.root_and_dashboard_routes(namespace)
+            end
           end
         end
       end
+    end
 
-      # Now define the routes for each resource
-      router.instance_exec(@application.namespaces) do |namespaces|
+    def root_and_dashboard_routes(namespace)
+      Proc.new do
+        root :to => (namespace.root_to || "dashboard#index")
+        if ActiveAdmin::Dashboards.built?
+          match '/dashboard' => 'dashboard#index', :as => 'dashboard'
+        end
+      end
+    end
+
+    # Define the routes for each resource
+    def define_resource_routes(router)
+      resource_routes = method(:resource_routes)
+
+      router.instance_exec(@application.namespaces, self) do |namespaces, aa_router|
         resources = namespaces.values.collect{|n| n.resources.resources }.flatten
         resources.each do |config|
-
-          # Define the block the will get eval'd within the namespace
-          route_definition_block = Proc.new do
-            case config
-            when Resource
-              resources config.underscored_resource_name.pluralize do
-                # Define any member actions
-                member do
-                  config.member_actions.each do |action|
-                    # eg: get :comment
-                    send(action.http_verb, action.name)
-                  end
-                end
-
-                # Define any collection actions
-                collection do
-                  config.collection_actions.each do |action|
-                    send(action.http_verb, action.name)
-                  end
-                end
-              end
-            when Page
-              match "/#{config.underscored_resource_name}" => "#{config.underscored_resource_name}#index"
-            else
-              raise "Unsupported config class: #{config.class}"
-            end
-          end
+          route_definition_block = aa_router.resource_routes(config)
 
           # Add in the parent if it exists
           if config.belongs_to?
@@ -67,14 +59,23 @@ module ActiveAdmin
 
               # Make the nested belongs_to routes
               # :only is set to nothing so that we don't clobber any existing routes on the resource
-              resources config.belongs_to_config.target.underscored_resource_name.pluralize, :only => [] do
+              resources config.belongs_to_config.target.resource_name.plural, :only => [] do
                 instance_eval &routes_for_belongs_to
+              end
+
+              # Batch action path is not nested.
+              if config.is_a?(Resource)
+                resources config.resource_name.route_key, :only => config.defined_actions do
+                  collection do
+                    post :batch_action
+                  end
+                end
               end
             end
           end
 
           # Add on the namespace if required
-          if !config.namespace.root?
+          unless config.namespace.root?
             routes_in_namespace = route_definition_block.dup
             route_definition_block = Proc.new do
               namespace config.namespace.name do
@@ -88,5 +89,38 @@ module ActiveAdmin
       end
     end
 
+    def resource_routes(config)
+      Proc.new do
+        case config
+        when Resource
+          resources config.resource_name.route_key, :only => config.defined_actions do
+            # Define any member actions
+            member do
+              config.member_actions.each do |action|
+                # eg: get :comment
+                send(action.http_verb, action.name)
+              end
+            end
+
+            # Define any collection actions
+            collection do
+              config.collection_actions.each do |action|
+                send(action.http_verb, action.name)
+              end
+
+              post :batch_action
+            end
+          end
+        when Page
+          match "/#{config.underscored_resource_name}" => "#{config.underscored_resource_name}#index"
+          config.page_actions.each do |action|
+            match "/#{config.underscored_resource_name}/#{action.name}" => "#{config.underscored_resource_name}##{action.name}", :via => action.http_verb
+          end
+        else
+          raise "Unsupported config class: #{config.class}"
+        end
+      end
+
+    end
   end
 end
