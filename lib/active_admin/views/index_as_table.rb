@@ -13,12 +13,14 @@ module ActiveAdmin
     # column method:
     #
     #     index do
+    #       selectable_column
     #       column :title
     #     end
     #
     # If the default title does not work for you, pass it as the first argument:
     #
     #     index do
+    #       selectable_column
     #       column "My Custom Title", :title
     #     end
     #
@@ -30,6 +32,7 @@ module ActiveAdmin
     # within the context of the view for each of the objects in the collection.
     #
     #     index do
+    #       selectable_column
     #       column "Title" do |post|
     #         link_to post.title, admin_post_path(post)
     #       end
@@ -41,6 +44,7 @@ module ActiveAdmin
     # To setup links to View, Edit and Delete a resource, use the default_actions method:
     #
     #     index do
+    #       selectable_column
     #       column :title
     #       default_actions
     #     end
@@ -48,6 +52,7 @@ module ActiveAdmin
     # Alternatively, you can create a column with custom links:
     #
     #     index do
+    #       selectable_column
     #       column :title
     #       column "Actions" do |post|
     #         link_to "View", admin_post_path(post)
@@ -64,10 +69,20 @@ module ActiveAdmin
     # If a column is defined using a block, you must pass the key to turn on sorting. The key
     # is the attribute which gets used to sort objects using Active Record.
     #
+    # By default, this is the column on the resource's table that the attribute corresponds to. 
+    # Otherwise, any attribute that the resource collection responds to can be used.
+    #
     #     index do
     #       column "Title", :sortable => :title do |post|
     #         link_to post.title, admin_post_path(post)
     #       end
+    #     end
+    #
+    # You can also sort using an attribute on another table by passing the table name
+    # and the attribute separated by a dot:
+    #
+    #     index do
+    #       column :title, :sortable => 'categories.name'
     #     end
     #
     # You can turn off sorting on any column by passing false:
@@ -94,19 +109,31 @@ module ActiveAdmin
 
       def build(page_presenter, collection)
         table_options = {
-          :id => active_admin_config.plural_underscored_resource_name,
+          :id => active_admin_config.resource_name.plural,
           :sortable => true,
-          :class => "index_table",
-          :i18n => active_admin_config.resource_class
+          :class => "index_table index",
+          :i18n => active_admin_config.resource_class,
+          :paginator => page_presenter[:paginator] != false
         }
 
         table_for collection, table_options do |t|
-          instance_exec(t, &page_presenter.block)
+          table_config_block = page_presenter.block || default_table
+          instance_exec(t, &table_config_block)
         end
       end
 
       def table_for(*args, &block)
         insert_tag IndexTableFor, *args, &block
+      end
+
+      def default_table
+        proc do
+          id_column
+          resource_class.content_columns.each do |col|
+            column col.name.to_sym
+          end
+          default_actions
+        end
       end
 
       #
@@ -115,9 +142,17 @@ module ActiveAdmin
       #
       class IndexTableFor < ::ActiveAdmin::Views::TableFor
 
+        # Display a column for checkbox
+        def selectable_column
+          return unless active_admin_config.batch_actions.any?
+          column( resource_selection_toggle_cell, { :class => "selectable" } ) { |resource| resource_selection_cell( resource ) }
+        end
+
         # Display a column for the id
         def id_column
-          column('ID', :sortable => :id){|resource| link_to resource.id, resource_path(resource), :class => "resource_id_link"}
+          column(resource_class.human_attribute_name(resource_class.primary_key), :sortable => resource_class.primary_key) do |resource| 
+            link_to resource.id, resource_path(resource), :class => "resource_id_link"
+          end
         end
 
         # Adds links to View, Edit and Delete
@@ -128,13 +163,13 @@ module ActiveAdmin
           column options[:name] do |resource|
             links = ''.html_safe
             if controller.action_methods.include?('show')
-              links += link_to I18n.t('active_admin.view'), resource_path(resource), :class => "member_link view_link"
+              links << link_to(I18n.t('active_admin.view'), resource_path(resource), :class => "member_link view_link")
             end
             if controller.action_methods.include?('edit')
-              links += link_to I18n.t('active_admin.edit'), edit_resource_path(resource), :class => "member_link edit_link"
+              links << link_to(I18n.t('active_admin.edit'), edit_resource_path(resource), :class => "member_link edit_link")
             end
             if controller.action_methods.include?('destroy')
-              links += link_to I18n.t('active_admin.delete'), resource_path(resource), :method => :delete, :confirm => I18n.t('active_admin.delete_confirmation'), :class => "member_link delete_link"
+              links << link_to(I18n.t('active_admin.delete'), resource_path(resource), :method => :delete, :data => {:confirm => I18n.t('active_admin.delete_confirmation')}, :class => "member_link delete_link")
             end
             links
           end

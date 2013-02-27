@@ -28,6 +28,29 @@ module ActiveAdmin
       end
     end
 
+    describe "#resource_column_names" do
+      it "should return the resource's column names" do
+        config.resource_column_names.should == Category.column_names
+      end
+    end
+
+    describe '#decorator_class' do
+      it 'returns nil by default' do
+        config.decorator_class.should be_nil
+      end
+      context 'when a decorator is defined' do
+        let(:resource) { namespace.register(Post) { decorate_with PostDecorator } }
+        specify '#decorator_class_name should return PostDecorator' do
+          resource.decorator_class_name.should == '::PostDecorator'
+        end
+
+        it 'returns the decorator class' do
+          resource.decorator_class.should == PostDecorator
+        end
+      end
+    end
+
+
     describe "controller name" do
       it "should return a namespaced controller name" do
         config.controller_name.should == "Admin::CategoriesController"
@@ -59,48 +82,6 @@ module ActiveAdmin
       context "when menu set to false" do
         let(:resource){ namespace.register(Post){ menu false } }
         it { should_not be_include_in_menu }
-      end
-    end
-
-    describe "menu item name" do
-      it "should be the resource name when not set" do
-        config.menu_item_name.should == "Categories"
-      end
-      it "should be settable" do
-        config.menu :label => "My Label"
-        config.menu_item_name.should == "My Label"
-      end
-    end
-
-    describe "parent menu item name" do
-      it "should be nil when not set" do
-        config.parent_menu_item_name.should == nil
-      end
-      it "should return the name if set" do
-        config.tap do |c|
-          c.menu :parent => "Blog"
-        end.parent_menu_item_name.should == "Blog"
-      end
-    end
-    
-    describe "menu item priority" do
-      it "should be 10 when not set" do
-        config.menu_item_priority.should == 10
-      end
-      it "should be settable" do
-        config.menu :priority => 2
-        config.menu_item_priority.should == 2
-      end
-    end
-    
-    describe "menu item display if" do
-      it "should be a proc always returning true if not set" do
-        config.menu_item_display_if.should be_instance_of(Proc)
-        config.menu_item_display_if.call.should == true
-      end
-      it "should be settable" do
-        config.menu :if => proc { false }
-        config.menu_item_display_if.call.should == false
       end
     end
 
@@ -200,17 +181,15 @@ module ActiveAdmin
 
       context "when resource class responds to primary_key" do
         it "should sort by primary key desc by default" do
-          mock_resource = mock
-          mock_resource.should_receive(:primary_key).and_return("pk")
-          config = Resource.new(namespace, mock_resource)
+          MockResource.should_receive(:primary_key).and_return("pk")
+          config = Resource.new(namespace, MockResource)
           config.sort_order.should == "pk_desc"
         end
       end
 
       context "when resource class does not respond to primary_key" do
         it "should default to id" do
-          mock_resource = mock
-          config = Resource.new(namespace, mock_resource)
+          config = Resource.new(namespace, MockResource)
           config.sort_order.should == "id_desc"
         end
       end

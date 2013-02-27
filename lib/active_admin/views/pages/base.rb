@@ -12,20 +12,21 @@ module ActiveAdmin
 
         private
 
-
         def add_classes_to_body
           @body.add_class(params[:action])
           @body.add_class(params[:controller].gsub('/', '_'))
+          @body.add_class("active_admin")
           @body.add_class("logged_in")
+          @body.add_class(active_admin_namespace.name.to_s + "_namespace")
         end
 
         def build_active_admin_head
           within @head do
-            meta :"http-equiv" => "Content-type", :content => "text/html; charset=utf-8"
-            insert_tag Arbre::HTML::Title, [title, active_admin_application.site_title].join(" | ")
+            insert_tag Arbre::HTML::Title, [title, render_or_call_method_or_proc_on(self, active_admin_application.site_title)].join(" | ")
             active_admin_application.stylesheets.each do |style|
-              text_node(stylesheet_link_tag(style.path, style.options).html_safe)
+              text_node(stylesheet_link_tag(style.path, style.options.dup).html_safe)
             end
+
             active_admin_application.javascripts.each do |path|
               script :src => javascript_path(path), :type => "text/javascript"
             end
@@ -45,52 +46,13 @@ module ActiveAdmin
         end
 
         def build_header
-          div :id => "header" do
-            render view_factory.header
-          end
+          insert_tag view_factory.header, active_admin_namespace, current_menu
         end
 
         def build_title_bar
-          div :id => "title_bar" do
-            build_titlebar_left
-            build_titlebar_right
-          end
-        end
-        
-        def build_titlebar_left
-          div :id => "titlebar_left" do
-            build_breadcrumb
-            build_title_tag
-          end
-        end
-        
-        def build_titlebar_right
-          div :id => "titlebar_right" do
-            build_action_items
-          end
+          insert_tag view_factory.title_bar, title, action_items_for_action
         end
 
-        def build_breadcrumb(separator = "/")
-          links = breadcrumb_links
-          return if links.empty?
-          span :class => "breadcrumb" do
-            links.each do |link|
-              text_node link
-              span(separator, :class => "breadcrumb_sep")
-            end
-          end
-        end
-
-        def build_title_tag
-          h2(title, :id => 'page_title')
-        end
-
-        def build_action_items
-          if active_admin_config && active_admin_config.action_items?
-            items = active_admin_config.action_items_for(params[:action])
-            insert_tag view_factory.action_items, items
-          end
-        end
 
         def build_page_content
           build_flash_messages
@@ -101,9 +63,9 @@ module ActiveAdmin
         end
 
         def build_flash_messages
-          if flash.keys.any?
+          if active_admin_flash_messages.any?
             div :class => 'flashes' do
-              flash.each do |type, message|
+              active_admin_flash_messages.each do |type, message|
                 div message, :class => "flash flash_#{type}"
               end
             end
@@ -131,11 +93,18 @@ module ActiveAdmin
           set_ivar_on_view "@page_title", title
         end
 
-
         # Returns the sidebar sections to render for the current action
         def sidebar_sections_for_action
           if active_admin_config && active_admin_config.sidebar_sections?
-            active_admin_config.sidebar_sections_for(params[:action])
+            active_admin_config.sidebar_sections_for(params[:action], self)
+          else
+            []
+          end
+        end
+
+        def action_items_for_action
+          if active_admin_config && active_admin_config.action_items?
+            active_admin_config.action_items_for(params[:action], self)
           else
             []
           end
@@ -156,9 +125,7 @@ module ActiveAdmin
 
         # Renders the content for the footer
         def build_footer
-          div :id => "footer" do
-            para "Powered by #{link_to("Active Admin", "http://www.activeadmin.info")} #{ActiveAdmin::VERSION}".html_safe
-          end
+          insert_tag view_factory.footer
         end
 
       end

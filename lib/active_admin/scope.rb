@@ -1,7 +1,7 @@
 module ActiveAdmin
   class Scope
 
-    attr_reader :name, :scope_method, :id, :scope_block, :display_if_block
+    attr_reader :name, :scope_method, :id, :scope_block, :display_if_block, :show_count
 
     # Create a Scope
     #
@@ -24,12 +24,14 @@ module ActiveAdmin
       @scope_method = method
       # Scope ':all' means no scoping
       @scope_method ||= name.to_sym unless name.to_sym == :all
+      @scope_method = nil if method && method.to_s == 'all'
       @id = @name.gsub(' ', '').underscore
       if block_given?
         @scope_method = nil
         @scope_block = block
       end
 
+      @show_count = options[:show_count].nil? ? true : options[:show_count]
       @display_if_block = options[:if]
     end
 

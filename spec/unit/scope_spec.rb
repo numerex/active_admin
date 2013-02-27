@@ -22,6 +22,13 @@ describe ActiveAdmin::Scope do
       its(:scope_block)  { should == nil }
     end
 
+    context 'when a name and scope method is :all' do
+      let(:scope)        { ActiveAdmin::Scope.new 'Tous', :all }
+      its(:name)         { should eq 'Tous' }
+      its(:scope_method) { should be_nil }
+      its(:scope_block)  { should be_nil }
+    end
+
     context "when a name and scope method" do
       let(:scope)        { ActiveAdmin::Scope.new "With API Access", :with_api_access }
       its(:name)         { should == "With API Access"}
@@ -48,6 +55,20 @@ describe ActiveAdmin::Scope do
     it "should return the :if block if set" do
       scope = ActiveAdmin::Scope.new(:with_block, nil, :if => proc{ false })
       scope.display_if_block.call.should == false
+    end
+
+  end
+
+  describe "show_count" do
+
+    it "should allow setting of show_count to prevent showing counts" do
+      scope = ActiveAdmin::Scope.new(:default, nil, :show_count => false)
+      scope.show_count.should == false
+    end
+
+    it "should set show_count to true if not passed in" do
+      scope = ActiveAdmin::Scope.new(:default)
+      scope.show_count.should == true
     end
 
   end

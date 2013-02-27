@@ -12,6 +12,8 @@ tmtags
 
 ## VIM
 *.swp
+# IDEA / RUBYMINE
+.idea
 
 ## PROJECT::GENERAL
 tags
@@ -33,3 +35,5 @@ test-rails*
 public
 .rvmrc
 .rspec
+.rails-version
+.rbenv-version

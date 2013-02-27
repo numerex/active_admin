@@ -29,6 +29,7 @@ en:
     less_than: "Less Than"
     main_content: "Please implement %{model}#main_content to display content."
     logout: "Logout"
+    powered_by: "Powered by %{active_admin} %{version}"
     sidebars:
       filters: "Filters"
     pagination:
@@ -43,3 +44,38 @@ en:
     blank_slate:
       content: "There are no %{resource_name} yet."
       link: "Create one"
+    batch_actions:
+      button_label: "Batch Actions"
+      delete_confirmation: "Are you sure you want to delete these %{plural_model}? You won't be able to undo this."
+      succesfully_destroyed:
+        one: "Successfully destroyed 1 %{model}"
+        other: "Successfully destroyed %{count} %{plural_model}"
+      selection_toggle_explanation: "(Toggle Selection)"
+      link: "Create one"
+      action_label: "%{title} Selected"
+      labels:
+        destroy: "Delete"
+    comments:
+      body: "Body"
+      author: "Author"
+      title: "Comment"
+      add: "Add Comment"
+      resource: "Resource"
+      no_comments_yet: "No comments yet."
+      title_content: "Comments (%{count})"
+      errors:
+        empty_text: "Comment wasn't saved, text was empty."
+    devise:
+      login:
+        title: "Login"
+        remember_me: "Remember me"
+        submit: "Login"
+      reset_password:
+        title: "Forgot your password?"
+        submit: "Reset My Password"
+      change_password:
+        title: "Change your password"
+        submit: "Change my password"
+      links:
+        sign_in: "Sign in"
+        forgot_your_password: "Forgot your password?"
